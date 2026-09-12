@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { X, Calendar, DollarSign, User, Building2, Check, Calculator, Info } from "lucide-react";
+import {
+  X,
+  Calendar,
+  DollarSign,
+  User,
+  Building2,
+  Check,
+  Calculator,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 interface PropertyOption {
   id: string;
@@ -30,6 +41,10 @@ export function NewBookingModal({
 
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const date = new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  });
   const [status, setStatus] = useState("Confirmed");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,30 +68,62 @@ export function NewBookingModal({
     return stayNights * unitBaseRate;
   }, [stayNights, unitBaseRate]);
 
-  // Handlers for dates to keep checkOut >= checkIn
-  const handleCheckInChange = (newIn: string) => {
-    setCheckIn(newIn);
-    if (checkOut && checkOut <= newIn) {
-      const nextDay = new Date(newIn);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setCheckOut(nextDay.toISOString().split("T")[0]);
-    }
+  const formatInputDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const handleCheckOutChange = (newOut: string) => {
-    if (checkIn && newOut <= checkIn) {
-      const nextDay = new Date(checkIn);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setCheckOut(nextDay.toISOString().split("T")[0]);
-    } else {
-      setCheckOut(newOut);
-    }
+  const parseInputDate = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
   };
+
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth(),
+      1
+    );
+    const gridStart = new Date(firstDay);
+    gridStart.setDate(firstDay.getDate() - firstDay.getDay());
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + index);
+      return date;
+    });
+  }, [calendarMonth]);
+
+  const handleCalendarDateClick = (date: Date) => {
+    const selectedDate = formatInputDate(date);
+    if (!checkIn || checkOut) {
+      setCheckIn(selectedDate);
+      setCheckOut("");
+      return;
+    }
+
+    if (selectedDate <= checkIn) {
+      setCheckIn(selectedDate);
+      return;
+    }
+
+    setCheckOut(selectedDate);
+  };
+
+  const isDateBeforeCheckIn = (date: Date) =>
+    Boolean(checkIn && formatInputDate(date) <= checkIn && !checkOut);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!checkIn || !checkOut || stayNights <= 0) {
+      setError("Select a valid check-in and check-out date.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -204,32 +251,132 @@ export function NewBookingModal({
             </div>
           </div>
 
-          {/* Dates Range */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Check-In Date
-              </label>
-              <input
-                type="date"
-                value={checkIn}
-                onChange={(e) => handleCheckInChange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                required
-              />
+          {/* Visual Date Range Calendar */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-300">
+                  Reservation Dates
+                </label>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {!checkIn
+                    ? "Select a check-in date"
+                    : !checkOut
+                      ? "Now select a check-out date"
+                      : `${stayNights} ${stayNights === 1 ? "night" : "nights"} selected`}
+                </p>
+              </div>
+              {(checkIn || checkOut) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheckIn("");
+                    setCheckOut("");
+                  }}
+                  className="text-[10px] text-indigo-400 hover:text-indigo-300"
+                >
+                  Clear dates
+                </button>
+              )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Check-Out Date
-              </label>
-              <input
-                type="date"
-                value={checkOut}
-                min={checkIn}
-                onChange={(e) => handleCheckOutChange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                required
-              />
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarMonth(
+                      (current) =>
+                        new Date(current.getFullYear(), current.getMonth() - 1, 1)
+                    )
+                  }
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-semibold text-slate-200">
+                  {calendarMonth.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarMonth(
+                      (current) =>
+                        new Date(current.getFullYear(), current.getMonth() + 1, 1)
+                    )
+                  }
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 mb-1 text-center text-[10px] font-medium text-slate-500">
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((date) => {
+                  const value = formatInputDate(date);
+                  const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
+                  const isCheckIn = value === checkIn;
+                  const isCheckOut = value === checkOut;
+                  const isInRange =
+                    Boolean(checkIn && checkOut) && value > checkIn && value < checkOut;
+                  const isDisabled = isDateBeforeCheckIn(date);
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => handleCalendarDateClick(date)}
+                      className={`h-8 rounded-lg text-[11px] transition-colors ${
+                        !isCurrentMonth
+                          ? "text-slate-700"
+                          : isDisabled
+                            ? "cursor-not-allowed text-slate-700"
+                            : isCheckIn || isCheckOut
+                              ? "bg-indigo-600 font-semibold text-white"
+                              : isInRange
+                                ? "bg-indigo-500/20 text-indigo-200"
+                                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+                <span className="block text-[10px] text-slate-500">Check-in</span>
+                <span className="text-xs text-slate-200">
+                  {checkIn ? parseInputDate(checkIn).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }) : "Not selected"}
+                </span>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+                <span className="block text-[10px] text-slate-500">Check-out</span>
+                <span className="text-xs text-slate-200">
+                  {checkOut ? parseInputDate(checkOut).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }) : "Not selected"}
+                </span>
+              </div>
             </div>
           </div>
 
