@@ -55,6 +55,7 @@ export default function CleaningDispatcherPage() {
   const [newTime, setNewTime] = useState("11:00");
   const [newStatus, setNewStatus] = useState("Pending");
   const [newNotes, setNewNotes] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -117,8 +118,10 @@ export default function CleaningDispatcherPage() {
     setIsSubmitting(true);
     try {
       const fullDate = new Date(`${newDate}T${newTime || "12:00"}:00`);
-      const res = await fetch("/api/cleaning", {
-        method: "POST",
+      const res = await fetch(
+        selectedTaskId ? `/api/cleaning/${selectedTaskId}` : "/api/cleaning",
+        {
+        method: selectedTaskId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: newPropertyId,
@@ -127,7 +130,8 @@ export default function CleaningDispatcherPage() {
           status: newStatus,
           notes: newNotes,
         }),
-      });
+        }
+      );
 
       if (!res.ok) throw new Error("Failed to dispatch cleaner");
 
@@ -135,6 +139,7 @@ export default function CleaningDispatcherPage() {
       setIsModalOpen(false);
       setNewCleanerName("");
       setNewNotes("");
+      setSelectedTaskId(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -168,6 +173,10 @@ export default function CleaningDispatcherPage() {
 
     return matchesStatus && matchesSearch;
   });
+
+  const pendingTurnovers = tasks.filter(
+    (task) => task.status === "Pending" && task.cleanerName === "Unassigned"
+  );
 
   return (
     <AppShell
@@ -440,9 +449,11 @@ export default function CleaningDispatcherPage() {
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-400" />
-                  Dispatch Housekeeper
+                  Cleaning Dispatch & Assignment
                 </h3>
-                <p className="text-xs text-slate-400">Schedule cleaning for a condo unit</p>
+                <p className="text-xs text-slate-400">
+                  Review turnover reminders or schedule additional cleaning
+                </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -452,7 +463,66 @@ export default function CleaningDispatcherPage() {
               </button>
             </div>
 
+            <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h4 className="text-xs font-semibold text-amber-300">
+                    Units needing cleaning
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Automatic turnover reminders waiting for assignment
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                  {pendingTurnovers.length}
+                </span>
+              </div>
+
+              {pendingTurnovers.length === 0 ? (
+                <p className="text-[11px] text-slate-400">
+                  No unassigned checkout cleanings right now.
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {pendingTurnovers.map((task) => (
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTaskId(task.id);
+                        setNewPropertyId(task.propertyId);
+                        setNewDate(new Date(task.date).toISOString().split("T")[0]);
+                        setNewTime(
+                          new Date(task.date).toLocaleTimeString("en-GB", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        );
+                        setNewNotes(task.notes || "");
+                      }}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/70 px-2.5 py-2 text-left hover:border-amber-500/40 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-200">
+                          Unit {task.property.unitNumber}
+                        </span>
+                        <span className="text-[10px] text-amber-300">
+                          {formatDate(task.date)} · {formatTime(task.date)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                        {task.property.buildingName}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <form onSubmit={handleCreateTask} className="space-y-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Manual dispatch
+              </p>
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Select Managed Condo Unit
@@ -473,7 +543,9 @@ export default function CleaningDispatcherPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Housekeeper / Cleaner Name
+                  {selectedTaskId
+                    ? "Assign Housekeeper / Cleaner"
+                    : "Housekeeper / Cleaner Name"}
                 </label>
                 <input
                   type="text"
@@ -553,7 +625,13 @@ export default function CleaningDispatcherPage() {
                   disabled={isSubmitting}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
                 >
-                  {isSubmitting ? "Dispatching..." : "Confirm Dispatch"}
+                  {isSubmitting
+                    ? selectedTaskId
+                      ? "Assigning..."
+                      : "Dispatching..."
+                    : selectedTaskId
+                      ? "Assign Cleaner"
+                      : "Confirm Dispatch"}
                 </button>
               </div>
             </form>
