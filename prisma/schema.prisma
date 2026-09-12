@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  id            String         @id @default(uuid())
+  name          String
+  unitNumber    String
+  buildingName  String
+  basePrice     Float
+  createdAt     DateTime       @default(now())
+  bookings      Booking[]
+  cleaningTasks CleaningTask[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  propertyId  String
+  guestName   String
+  platform    String   // Airbnb, Direct, Booking.com
+  checkIn     DateTime
+  checkOut    DateTime
+  totalAmount Float
+  status      String   // Confirmed, Checked-In, Completed
+  createdAt   DateTime @default(now())
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model CleaningTask {
+  id          String   @id @default(uuid())
+  propertyId  String
+  cleanerName String
+  date        DateTime
+  status      String   // Pending, In-Progress, Completed
+  notes       String?
+  createdAt   DateTime @default(now())
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
