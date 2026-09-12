@@ -28,6 +28,21 @@ export async function PATCH(
         nextStatus !== "Completed" &&
         nextCleanerName !== "Unassigned"
       ) {
+        const activeUnitAssignment = await tx.cleaningTask.findFirst({
+          where: {
+            id: { not: id },
+            propertyId: existing.propertyId,
+            status: { in: ["Pending", "In-Progress"] },
+          },
+          select: { property: { select: { unitNumber: true } } },
+        });
+
+        if (activeUnitAssignment) {
+          throw new Error(
+            `Unit ${activeUnitAssignment.property.unitNumber} already has an active cleaning assignment`
+          );
+        }
+
         const activeAssignment = await tx.cleaningTask.findFirst({
           where: {
             id: { not: id },
@@ -66,7 +81,11 @@ export async function PATCH(
 
     return NextResponse.json(updatedTask);
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Housekeeper is already")) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("Housekeeper is already") ||
+        error.message.startsWith("Unit "))
+    ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error("Error updating cleaning task:", error);

@@ -214,6 +214,20 @@ export default function CleaningDispatcherPage() {
     (housekeeper) =>
       housekeeper.active && !busyCleanerNames.has(housekeeper.name)
   );
+  const busyPropertyIds = new Set(
+    tasks
+      .filter(
+        (task) =>
+          (task.status === "Pending" || task.status === "In-Progress") &&
+          task.id !== selectedTaskId
+      )
+      .map((task) => task.propertyId)
+  );
+  const availableProperties = properties.filter(
+    (property) =>
+      !busyPropertyIds.has(property.id) ||
+      (selectedTaskId !== null && property.id === newPropertyId)
+  );
 
   return (
     <AppShell
@@ -589,12 +603,17 @@ export default function CleaningDispatcherPage() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                   required
                 >
-                  {properties.map((p) => (
+                  {availableProperties.map((p) => (
                     <option key={p.id} value={p.id}>
                       Unit {p.unitNumber} - {p.name}
                     </option>
                   ))}
                 </select>
+                {availableProperties.length === 0 && (
+                  <p className="mt-1 text-[10px] text-amber-300">
+                    All units already have an active cleaning assignment.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -689,7 +708,11 @@ export default function CleaningDispatcherPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || availableHousekeepers.length === 0}
+                  disabled={
+                    isSubmitting ||
+                    availableHousekeepers.length === 0 ||
+                    availableProperties.length === 0
+                  }
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
                 >
                   {isSubmitting

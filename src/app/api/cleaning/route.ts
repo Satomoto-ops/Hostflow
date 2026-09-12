@@ -44,6 +44,20 @@ export async function POST(req: Request) {
 
     const task = await prisma.$transaction(async (tx) => {
       if (nextStatus !== "Completed") {
+        const activeUnitAssignment = await tx.cleaningTask.findFirst({
+          where: {
+            propertyId,
+            status: { in: ["Pending", "In-Progress"] },
+          },
+          select: { property: { select: { unitNumber: true } } },
+        });
+
+        if (activeUnitAssignment) {
+          throw new Error(
+            `Unit ${activeUnitAssignment.property.unitNumber} already has an active cleaning assignment`
+          );
+        }
+
         const activeAssignment = await tx.cleaningTask.findFirst({
           where: {
             cleanerName,
@@ -82,7 +96,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Housekeeper is already")) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("Housekeeper is already") ||
+        error.message.startsWith("Unit "))
+    ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error("Error creating cleaning task:", error);
