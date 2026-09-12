@@ -62,6 +62,7 @@ export default function CleaningDispatcherPage() {
   const [newStatus, setNewStatus] = useState("Pending");
   const [newNotes, setNewNotes] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isReassignment, setIsReassignment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -151,6 +152,7 @@ export default function CleaningDispatcherPage() {
       setNewCleanerName("");
       setNewNotes("");
       setSelectedTaskId(null);
+      setIsReassignment(false);
     } catch (err) {
       console.error(err);
       window.alert(err instanceof Error ? err.message : "Failed to dispatch cleaner");
@@ -237,6 +239,12 @@ export default function CleaningDispatcherPage() {
       !busyPropertyIds.has(property.id) ||
       (selectedTaskId !== null && property.id === newPropertyId)
   );
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
+  const canEmergencyRelease =
+    selectedTaskId !== null &&
+    selectedTask !== undefined &&
+    selectedTask.cleanerName !== "Unassigned" &&
+    selectedTask.status !== "Completed";
 
   return (
     <AppShell
@@ -247,6 +255,8 @@ export default function CleaningDispatcherPage() {
         label: "Dispatch Cleaning",
         onClick: () => {
           setNewDate(new Date().toISOString().split("T")[0]);
+          setSelectedTaskId(null);
+          setIsReassignment(false);
           setIsModalOpen(true);
         },
         icon: <Plus className="w-4 h-4" />,
@@ -498,8 +508,35 @@ export default function CleaningDispatcherPage() {
                         </button>
                       </td>
 
-                      {/* Delete */}
+                      {/* Reassign or remove */}
                       <td className="py-3.5 px-4 text-right">
+                        {task.status !== "Completed" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTaskId(task.id);
+                              setIsReassignment(true);
+                              setNewPropertyId(task.propertyId);
+                              setNewCleanerName("");
+                              setNewDate(new Date(task.date).toISOString().split("T")[0]);
+                              setNewTime(
+                                new Date(task.date).toLocaleTimeString("en-GB", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              );
+                              setNewStatus(task.status);
+                              setNewNotes(task.notes || "");
+                              setIsModalOpen(true);
+                            }}
+                            aria-label={`Reassign cleaning task for Unit ${task.property.unitNumber}`}
+                            className="mr-1.5 inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 px-2 py-1.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/10 hover:text-indigo-200 transition-colors"
+                            title="Reassign this task"
+                          >
+                            <User className="w-3 h-3" />
+                            Reassign
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleDeleteTask(task.id)}
@@ -527,7 +564,9 @@ export default function CleaningDispatcherPage() {
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-400" />
-                  Cleaning Dispatch & Assignment
+                  {isReassignment
+                    ? "Reassign Cleaning Task"
+                    : "Cleaning Dispatch & Assignment"}
                 </h3>
                 <p className="text-xs text-slate-400">
                   Review turnover reminders or schedule additional cleaning
@@ -571,6 +610,7 @@ export default function CleaningDispatcherPage() {
                       type="button"
                       onClick={() => {
                         setSelectedTaskId(task.id);
+                        setIsReassignment(false);
                         setNewPropertyId(task.propertyId);
                         setNewDate(new Date(task.date).toISOString().split("T")[0]);
                         setNewTime(
@@ -602,7 +642,7 @@ export default function CleaningDispatcherPage() {
 
             <form onSubmit={handleCreateTask} className="space-y-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Manual dispatch
+                {isReassignment ? "Reassignment" : "Manual dispatch"}
               </p>
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -633,13 +673,24 @@ export default function CleaningDispatcherPage() {
                 </label>
                 <select
                   value={newCleanerName}
-                  onChange={(e) => setNewCleanerName(e.target.value)}
+                  onChange={(e) => {
+                    const cleanerName = e.target.value;
+                    setNewCleanerName(cleanerName);
+                    if (cleanerName === "Unassigned") {
+                      setNewStatus("Pending");
+                    }
+                  }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                   required
                 >
                   <option value="" disabled>
                     Select an active housekeeper
                   </option>
+                  {canEmergencyRelease && (
+                    <option value="Unassigned">
+                      Unassigned (Emergency Release)
+                    </option>
+                  )}
                   {availableHousekeepers.map((housekeeper) => (
                       <option key={housekeeper.id} value={housekeeper.name}>
                         {housekeeper.name}
@@ -648,8 +699,9 @@ export default function CleaningDispatcherPage() {
                 </select>
                 {availableHousekeepers.length === 0 && (
                   <p className="mt-1 text-[10px] text-amber-300">
-                    All active housekeepers are currently assigned. Complete a
-                    cleaning task before assigning them again.
+                    {canEmergencyRelease
+                      ? "No replacement is available. Release this task for later reassignment."
+                      : "All active housekeepers are currently assigned. Complete a cleaning task before assigning them again."}
                   </p>
                 )}
               </div>
@@ -721,7 +773,8 @@ export default function CleaningDispatcherPage() {
                   type="submit"
                   disabled={
                     isSubmitting ||
-                    availableHousekeepers.length === 0 ||
+                    (availableHousekeepers.length === 0 &&
+                      newCleanerName !== "Unassigned") ||
                     availableProperties.length === 0
                   }
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
