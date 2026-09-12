@@ -37,6 +37,9 @@ interface NewBookingModalProps {
   onBookingCreated: () => void;
 }
 
+const STANDARD_CHECK_IN_HOUR = 15;
+const STANDARD_CHECK_OUT_HOUR = 11;
+
 export function NewBookingModal({
   isOpen,
   onClose,
@@ -158,6 +161,12 @@ export function NewBookingModal({
     return new Date(year, month - 1, day);
   };
 
+  const toBookingDateTime = (value: string, hour: number) => {
+    const date = parseInputDate(value);
+    date.setHours(hour, 0, 0, 0);
+    return date.toISOString();
+  };
+
   const calendarDays = useMemo(() => {
     const firstDay = new Date(
       calendarMonth.getFullYear(),
@@ -250,8 +259,8 @@ export function NewBookingModal({
           propertyId,
           guestName,
           platform,
-          checkIn,
-          checkOut,
+          checkIn: toBookingDateTime(checkIn, STANDARD_CHECK_IN_HOUR),
+          checkOut: toBookingDateTime(checkOut, STANDARD_CHECK_OUT_HOUR),
           totalAmount: estimatedPayout,
           status,
         }),
@@ -388,6 +397,9 @@ export function NewBookingModal({
                     : !checkOut
                       ? "Now select a check-out date"
                       : `${stayNights} ${stayNights === 1 ? "night" : "nights"} selected`}
+                </p>
+                <p className="text-[10px] text-indigo-300 mt-1">
+                  Standard schedule: check-in 3:00 PM · check-out 11:00 AM
                 </p>
                 {nextBookingStart && availableNightsBeforeNextBooking !== null && (
                   <p className="text-[10px] text-amber-300 mt-1">

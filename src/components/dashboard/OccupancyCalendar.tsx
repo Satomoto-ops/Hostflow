@@ -561,7 +561,7 @@ export function OccupancyCalendar({
                         {formatDate(b.checkIn)} – {formatDate(b.checkOut)}
                       </div>
                       <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                        Check-in: 2:00 PM
+                        Check-in: 3:00 PM
                       </div>
                     </td>
 
@@ -780,7 +780,7 @@ export function OccupancyCalendar({
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Check-In:</span>
                   <span className="font-medium text-slate-200">
-                    {formatDate(detailBooking.checkIn)} (2:00 PM)
+                    {formatDate(detailBooking.checkIn)} (3:00 PM)
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
