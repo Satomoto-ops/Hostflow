@@ -172,7 +172,19 @@ export default function CleaningDispatcherPage() {
   // KPIs
   const pendingCount = tasks.filter((t) => t.status === "Pending").length;
   const inProgressCount = tasks.filter((t) => t.status === "In-Progress").length;
-  const completedCount = tasks.filter((t) => t.status === "Completed").length;
+  const latestTaskByProperty = new Map<string, CleaningTask>();
+  tasks.forEach((task) => {
+    const current = latestTaskByProperty.get(task.propertyId);
+    if (
+      !current ||
+      new Date(task.createdAt).getTime() > new Date(current.createdAt).getTime()
+    ) {
+      latestTaskByProperty.set(task.propertyId, task);
+    }
+  });
+  const completedCount = Array.from(latestTaskByProperty.values()).filter(
+    (task) => task.status === "Completed"
+  ).length;
 
   const filteredTasks = tasks.filter((t) => {
     const matchesStatus = t.status === selectedStatus;
