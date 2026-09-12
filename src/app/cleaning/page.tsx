@@ -162,10 +162,19 @@ export default function CleaningDispatcherPage() {
   const handleDeleteTask = async (id: string) => {
     if (!confirm("Are you sure you want to remove this dispatch assignment?")) return;
     try {
-      await fetch(`/api/cleaning/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/cleaning/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to remove dispatch assignment");
+      }
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       console.error("Error deleting task", err);
+      window.alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to remove dispatch assignment"
+      );
     }
   };
 
@@ -492,9 +501,11 @@ export default function CleaningDispatcherPage() {
                       {/* Delete */}
                       <td className="py-3.5 px-4 text-right">
                         <button
+                          type="button"
                           onClick={() => handleDeleteTask(task.id)}
+                          aria-label={`Remove cleaning assignment for Unit ${task.property.unitNumber}`}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                          title="Remove assignment"
+                          title="Remove cleaning assignment"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

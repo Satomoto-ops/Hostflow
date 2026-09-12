@@ -102,6 +102,18 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const existing = await prisma.cleaningTask.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Cleaning task not found" },
+        { status: 404 }
+      );
+    }
+
     await prisma.cleaningTask.delete({
       where: { id },
     });
