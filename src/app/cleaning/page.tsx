@@ -11,8 +11,8 @@ import {
   User,
   Building,
   Calendar,
-  Filter,
   Search,
+  ArrowRight,
   X,
   Trash2,
   CheckCircle,
@@ -48,7 +48,6 @@ export default function CleaningDispatcherPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [housekeepers, setHousekeepers] = useState<Housekeeper[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -170,15 +169,13 @@ export default function CleaningDispatcherPage() {
   const completedCount = tasks.filter((t) => t.status === "Completed").length;
 
   const filteredTasks = tasks.filter((t) => {
-    const matchesStatus =
-      filterStatus === "All" || t.status === filterStatus;
     const matchesSearch =
       t.cleanerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.property.unitNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.property.buildingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.notes && t.notes.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesStatus && matchesSearch;
+    return matchesSearch;
   });
 
   const pendingTurnovers = tasks.filter(
@@ -264,11 +261,11 @@ export default function CleaningDispatcherPage() {
               </span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Scheduled completion times, assignee details, and direct status toggling
+              Scheduled completion times, assignee details, and status progression
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center">
             {/* Search */}
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -279,23 +276,6 @@ export default function CleaningDispatcherPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
               />
-            </div>
-
-            {/* Filter */}
-            <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
-              {["All", "Pending", "In-Progress", "Completed"].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setFilterStatus(st)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                    filterStatus === st
-                      ? "bg-indigo-600 text-white shadow"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
             </div>
           </div>
         </div>
@@ -310,7 +290,7 @@ export default function CleaningDispatcherPage() {
                 <th className="py-3.5 px-4">Scheduled Date & Time</th>
                 <th className="py-3.5 px-4">Task Status</th>
                 <th className="py-3.5 px-4">Turnover Instructions</th>
-                <th className="py-3.5 px-4 text-center">Update Status</th>
+                <th className="py-3.5 px-4 text-center">Next Status</th>
                 <th className="py-3.5 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -401,24 +381,36 @@ export default function CleaningDispatcherPage() {
                         </p>
                       </td>
 
-                      {/* Status control */}
+                      {/* Advance status */}
                       <td className="py-3.5 px-4 text-center">
-                        <select
-                          value={task.status}
-                          onChange={(event) =>
+                        <button
+                          type="button"
+                          onClick={() =>
                             updateTaskStatus(
                               task,
-                              event.target.value as CleaningTask["status"]
+                              isPending ? "In-Progress" : "Completed"
                             )
                           }
                           disabled={updatingId === task.id}
-                          aria-label={`Update cleaning task status for Unit ${task.property.unitNumber}`}
-                          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors focus:border-indigo-500 focus:outline-none disabled:cursor-wait disabled:opacity-50"
+                          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                            isCompleted
+                              ? "border-slate-700 bg-slate-900 text-slate-500"
+                              : isPending
+                                ? "border-blue-500 bg-blue-600 text-white shadow-md shadow-blue-500/20 hover:bg-blue-500"
+                                : "border-emerald-500 bg-emerald-600 text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-500"
+                          }`}
                         >
-                          <option value="Pending">Pending</option>
-                          <option value="In-Progress">In-Progress</option>
-                          <option value="Completed">Completed</option>
-                        </select>
+                          {updatingId === task.id ? (
+                            <span className="animate-spin">●</span>
+                          ) : isCompleted ? (
+                            "Completed"
+                          ) : (
+                            <>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                              {isPending ? "Start Cleaning" : "Mark Completed"}
+                            </>
+                          )}
+                        </button>
                       </td>
 
                       {/* Delete */}
