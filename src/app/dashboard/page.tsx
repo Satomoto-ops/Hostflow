@@ -154,6 +154,7 @@ export default function DashboardPage() {
             isOpen={isNewBookingOpen}
             onClose={() => setIsNewBookingOpen(false)}
             properties={properties}
+            bookings={data.allBookings}
             onBookingCreated={fetchDashboardData}
           />
         </div>

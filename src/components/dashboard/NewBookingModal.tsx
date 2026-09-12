@@ -22,10 +22,18 @@ interface PropertyOption {
   basePrice: number;
 }
 
+interface ExistingBooking {
+  propertyId: string;
+  checkIn: string | Date;
+  checkOut: string | Date;
+  status: string;
+}
+
 interface NewBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   properties: PropertyOption[];
+  bookings: ExistingBooking[];
   onBookingCreated: () => void;
 }
 
@@ -33,6 +41,7 @@ export function NewBookingModal({
   isOpen,
   onClose,
   properties,
+  bookings,
   onBookingCreated,
 }: NewBookingModalProps) {
   const [propertyId, setPropertyId] = useState(properties[0]?.id || "");
@@ -55,8 +64,32 @@ export function NewBookingModal({
 
   // Selected property object
   const selectedProperty = useMemo(() => {
-    return properties.find((p) => p.id === propertyId) || properties[0];
+    return properties.find((p) => p.id === propertyId);
   }, [properties, propertyId]);
+
+  const availableProperties = useMemo(() => {
+    if (!checkIn || !checkOut) return properties;
+
+    const selectedStart = new Date(`${checkIn}T00:00:00`);
+    const selectedEnd = new Date(`${checkOut}T00:00:00`);
+
+    return properties.filter((property) => {
+      const hasConflict = bookings.some((booking) => {
+        if (
+          booking.propertyId !== property.id ||
+          !["Confirmed", "Checked-In"].includes(booking.status)
+        ) {
+          return false;
+        }
+
+        const bookingStart = new Date(booking.checkIn);
+        const bookingEnd = new Date(booking.checkOut);
+        return bookingStart < selectedEnd && bookingEnd > selectedStart;
+      });
+
+      return !hasConflict;
+    });
+  }, [bookings, checkIn, checkOut, properties]);
 
   // Calculate stay duration in nights: (Check-Out Date - Check-In Date)
   const stayNights = useMemo(() => {
@@ -129,6 +162,11 @@ export function NewBookingModal({
       return;
     }
 
+    if (!propertyId || !availableProperties.some((property) => property.id === propertyId)) {
+      setError("Select an available unit for the selected dates.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -137,7 +175,7 @@ export function NewBookingModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId: propertyId || selectedProperty?.id,
+          propertyId,
           guestName,
           platform,
           checkIn,
@@ -193,12 +231,21 @@ export function NewBookingModal({
               Select Condo Unit
             </label>
             <select
-              value={propertyId || selectedProperty?.id || ""}
+              value={
+                availableProperties.some((property) => property.id === propertyId)
+                  ? propertyId
+                  : ""
+              }
               onChange={(e) => setPropertyId(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               required
             >
-              {properties.map((p) => (
+              <option value="" disabled>
+                {availableProperties.length
+                  ? "Select an available unit"
+                  : "No units available for these dates"}
+              </option>
+              {availableProperties.map((p) => (
                 <option key={p.id} value={p.id}>
                   Unit {p.unitNumber} - {p.name} (₱{p.basePrice.toLocaleString()}/night)
                 </option>
