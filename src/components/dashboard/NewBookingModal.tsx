@@ -272,6 +272,17 @@ export function NewBookingModal({
       }
 
       onBookingCreated();
+      setPropertyId("");
+      setGuestName("");
+      setPlatform("Airbnb");
+      setCheckIn("");
+      setCheckOut("");
+      setCalendarMonth(() => {
+        const date = new Date();
+        return new Date(date.getFullYear(), date.getMonth(), 1);
+      });
+      setStatus("Confirmed");
+      setError(null);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
