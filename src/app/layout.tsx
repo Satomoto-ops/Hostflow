@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "HostFlow | Property & Transient Rental Management SaaS",
   description:
-    "End-to-end condo rental management: multi-channel occupancy tracking, housekeeping dispatcher, and guest utility calculators.",
+    "End-to-end condo rental management: multi-channel occupancy tracking, housekeeping dispatcher, and guest extras and charges.",
 };
 
 export default function RootLayout({

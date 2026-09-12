@@ -42,7 +42,7 @@ const navItems = [
     badge: "Live",
   },
   {
-    name: "Utility Calculator",
+    name: "Extras & Charges",
     href: "/calculator",
     icon: Calculator,
     badge: "Tool",

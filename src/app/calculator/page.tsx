@@ -28,7 +28,7 @@ interface Property {
   basePrice: number;
 }
 
-export default function UtilityCalculatorPage() {
+export default function ExtrasChargesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
 
@@ -96,7 +96,7 @@ export default function UtilityCalculatorPage() {
   const refundToGuest = depositRemaining > 0 ? depositRemaining : 0;
 
   const handleCopyMessage = () => {
-    const text = `📋 *HostFlow Utility Settlement Statement*
+    const text = `📋 *HostFlow Extras & Charges Statement*
 Unit: ${unitDisplay}
 Guest: ${guestName}
 Duration: ${daysStayed} Nights Stay
@@ -115,7 +115,7 @@ Duration: ${daysStayed} Nights Stay
 • Billable: ${waterBillable} m³ @ ₱${waterRate}/m³
 • Subtotal: ₱${waterCost.toLocaleString()}
 
-🧾 *Total Utilities Due: ₱${totalUtilityBill.toLocaleString()}*
+🧾 *Total Extras & Charges Due: ₱${totalUtilityBill.toLocaleString()}*
 Security Deposit Held: ₱${securityDeposit.toLocaleString()}
 ${
   depositRemaining >= 0
@@ -141,8 +141,8 @@ Thank you for staying with us! Have a safe trip ahead!`;
 
   return (
     <AppShell
-      title="Utility & Payout Sub-Bill Calculator"
-      subtitle="Accurately compute electricity & water consumption charges for transient condo guests"
+      title="Extras & Charges Calculator"
+      subtitle="Calculate additional guest charges and optional utility adjustments"
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left column: Input Form */}
@@ -362,7 +362,7 @@ Thank you for staying with us! Have a safe trip ahead!`;
             <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
               <div className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-bold text-white text-base">Utility Sub-Bill Receipt</h3>
+                <h3 className="font-bold text-white text-base">Extras & Charges Statement</h3>
               </div>
               <span className="text-[10px] font-mono uppercase bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">
                 Live Calculation
@@ -418,7 +418,7 @@ Thank you for staying with us! Have a safe trip ahead!`;
               </div>
 
               <div className="flex items-center justify-between py-2 border-b border-slate-800/60 text-slate-300">
-                <span className="font-medium">Total Utility Consumption</span>
+                <span className="font-medium">Total Extras & Charges</span>
                 <span className="font-mono font-bold text-white text-sm">
                   {formatCurrency(totalUtilityBill)}
                 </span>
