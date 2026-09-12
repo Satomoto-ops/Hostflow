@@ -70,16 +70,30 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleBookingStatusChange = async (id: string, newStatus: string) => {
+  const handleBookingStatusChange = async (
+    id: string,
+    newStatus: string,
+    force = false
+  ) => {
     const res = await fetch(`/api/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, force }),
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Failed to update status");
+      const error = new Error(data.error || "Failed to update status") as Error & {
+        status?: number;
+        currentGuestName?: string;
+        currentBookingId?: string;
+        currentOccupant?: { unitNumber?: string };
+      };
+      error.status = res.status;
+      error.currentGuestName = data.currentGuestName;
+      error.currentBookingId = data.currentBookingId;
+      error.currentOccupant = data.currentOccupant;
+      throw error;
     }
 
     await fetchDashboardData();

@@ -62,6 +62,36 @@ export async function PATCH(
       return NextResponse.json({ error: "Property not found." }, { status: 404 });
     }
 
+    const currentOccupant =
+      nextStatus === "Checked-In"
+        ? await prisma.booking.findFirst({
+            where: {
+              propertyId: nextPropertyId,
+              status: "Checked-In",
+              id: { not: id },
+            },
+            select: { id: true, guestName: true, checkOut: true },
+          })
+        : null;
+
+    if (currentOccupant && !force) {
+      return NextResponse.json(
+        {
+          error: `Cannot check in: Unit ${property.unitNumber} is currently occupied by ${currentOccupant.guestName}.`,
+          collision: true,
+          currentGuestName: currentOccupant.guestName,
+          currentBookingId: currentOccupant.id,
+          currentOccupant: {
+            id: currentOccupant.id,
+            guestName: currentOccupant.guestName,
+            checkOut: currentOccupant.checkOut,
+            unitNumber: property.unitNumber,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         propertyId: nextPropertyId,
@@ -70,14 +100,16 @@ export async function PATCH(
         checkIn: { lt: dates.end },
         checkOut: { gt: dates.start },
       },
-      select: { id: true, guestName: true, checkOut: true },
+      select: { id: true, guestName: true, status: true, checkOut: true },
     });
 
-    if (conflictingBooking && !force) {
+    if (conflictingBooking && (!force || conflictingBooking.status !== "Checked-In")) {
       return NextResponse.json(
         {
           error: `These dates overlap with ${conflictingBooking.guestName}'s existing reservation.`,
           collision: true,
+          currentGuestName: conflictingBooking.guestName,
+          currentBookingId: conflictingBooking.id,
           currentOccupant: {
             id: conflictingBooking.id,
             guestName: conflictingBooking.guestName,
@@ -89,49 +121,29 @@ export async function PATCH(
       );
     }
 
-    // Backend Safety Guard: an active reservation cannot be checked in while another overlaps it.
-    if (nextStatus === "Checked-In" && !force) {
-      const existingOccupant = await prisma.booking.findFirst({
-        where: {
+    const booking = await prisma.$transaction(async (tx) => {
+      if (nextStatus === "Checked-In" && force && currentOccupant) {
+        await tx.booking.update({
+          where: { id: currentOccupant.id },
+          data: { status: "Completed" },
+        });
+      }
+
+      return tx.booking.update({
+        where: { id },
+        data: {
+          status: nextStatus,
+          guestName: nextGuestName.trim(),
+          platform: nextPlatform,
           propertyId: nextPropertyId,
-          status: "Checked-In",
-          id: { not: id },
-          checkIn: { lt: dates.end },
-          checkOut: { gt: dates.start },
+          checkIn: dates.start,
+          checkOut: dates.end,
+          totalAmount: amount.amount,
+        },
+        include: {
+          property: true,
         },
       });
-
-      if (existingOccupant) {
-        return NextResponse.json(
-          {
-            error: `Cannot check in: Unit ${property.unitNumber} is currently occupied by ${existingOccupant.guestName}.`,
-            collision: true,
-            currentOccupant: {
-              id: existingOccupant.id,
-              guestName: existingOccupant.guestName,
-              checkOut: existingOccupant.checkOut,
-              unitNumber: property.unitNumber,
-            },
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    const booking = await prisma.booking.update({
-      where: { id },
-      data: {
-        status: nextStatus,
-        guestName: nextGuestName.trim(),
-        platform: nextPlatform,
-        propertyId: nextPropertyId,
-        checkIn: dates.start,
-        checkOut: dates.end,
-        totalAmount: amount.amount,
-      },
-      include: {
-        property: true,
-      },
     });
 
     return NextResponse.json(booking);

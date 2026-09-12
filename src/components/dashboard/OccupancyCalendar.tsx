@@ -44,7 +44,7 @@ export interface BookingWithProperty {
 
 interface OccupancyCalendarProps {
   bookings: BookingWithProperty[];
-  onStatusChange?: (id: string, newStatus: string) => Promise<void>;
+  onStatusChange?: (id: string, newStatus: string, force?: boolean) => Promise<void>;
   onNewBookingClick?: () => void;
 }
 
@@ -67,6 +67,12 @@ export function OccupancyCalendar({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [detailBooking, setDetailBooking] = useState<BookingWithProperty | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [earlyArrival, setEarlyArrival] = useState<{
+    bookingId: string;
+    unitNumber: string;
+    currentGuestName: string;
+    currentBookingId: string;
+  } | null>(null);
 
   // Current calendar month range calculation (e.g., September 2026)
   const now = useMemo(() => new Date(), []);
@@ -174,11 +180,37 @@ export function OccupancyCalendar({
     setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
-  const handleAction = async (id: string, targetStatus: string) => {
+  const handleAction = async (id: string, targetStatus: string, force = false) => {
     if (!onStatusChange) return;
     setUpdatingId(id);
     try {
-      await onStatusChange(id, targetStatus);
+      await onStatusChange(id, targetStatus, force);
+    } catch (error) {
+      const conflict = error as Error & {
+        status?: number;
+        currentGuestName?: string;
+        currentBookingId?: string;
+        currentOccupant?: { unitNumber?: string };
+      };
+      if (
+        targetStatus === "Checked-In" &&
+        conflict.status === 409 &&
+        conflict.currentGuestName &&
+        conflict.currentBookingId
+      ) {
+        const booking = bookings.find((item) => item.id === id);
+        if (booking) {
+          setEarlyArrival({
+            bookingId: id,
+            unitNumber:
+              conflict.currentOccupant?.unitNumber ?? booking.property.unitNumber,
+            currentGuestName: conflict.currentGuestName,
+            currentBookingId: conflict.currentBookingId,
+          });
+        }
+      } else {
+        throw error;
+      }
     } finally {
       setUpdatingId(null);
     }
@@ -598,6 +630,45 @@ export function OccupancyCalendar({
         completedBookings={allCompletedBookings}
         onViewDetails={(b) => setDetailBooking(b)}
       />
+
+      {earlyArrival && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/30 p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-amber-500/10 p-2 text-amber-400">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Early Arrival Alert</h3>
+                <p className="mt-2 text-sm text-slate-300">
+                  Unit {earlyArrival.unitNumber} is still occupied by{" "}
+                  <span className="font-semibold text-white">{earlyArrival.currentGuestName}</span>.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-6 mt-5 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEarlyArrival(null)}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updatingId === earlyArrival.bookingId}
+                onClick={async () => {
+                  await handleAction(earlyArrival.bookingId, "Checked-In", true);
+                  setEarlyArrival(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium disabled:opacity-50"
+              >
+                Check Out Previous Guest & Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Booking Details Modal for Completed & Historical bookings */}
       {detailBooking && (
