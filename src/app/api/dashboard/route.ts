@@ -1,6 +1,39 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function countCalendarNights(start: Date, end: Date) {
+  return Math.max(
+    1,
+    Math.round(
+      (startOfLocalDay(end).getTime() - startOfLocalDay(start).getTime()) /
+        MILLISECONDS_PER_DAY
+    )
+  );
+}
+
+function getMonthlyRevenue(booking: { checkIn: Date; checkOut: Date; totalAmount: number }, year: number, month: number) {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 1);
+  const stayStart = startOfLocalDay(new Date(booking.checkIn));
+  const stayEnd = startOfLocalDay(new Date(booking.checkOut));
+  const totalNights = countCalendarNights(stayStart, stayEnd);
+  const overlapStart = new Date(Math.max(stayStart.getTime(), monthStart.getTime()));
+  const overlapEnd = new Date(Math.min(stayEnd.getTime(), monthEnd.getTime()));
+
+  if (overlapStart >= overlapEnd) return 0;
+
+  const nightsInMonth = Math.round(
+    (overlapEnd.getTime() - overlapStart.getTime()) / MILLISECONDS_PER_DAY
+  );
+  return (booking.totalAmount / totalNights) * nightsInMonth;
+}
+
 export async function GET() {
   try {
     const now = new Date();
@@ -65,18 +98,10 @@ export async function GET() {
     const activeUnits = occupiedPropertyIds.size;
     const totalUnits = properties.length;
 
-    // Total Monthly Revenue (bookings occurring in this current month/year)
-    const currentMonthBookings = allBookings.filter((b) => {
-      const cIn = new Date(b.checkIn);
-      return (
-        cIn.getFullYear() === currentYear &&
-        cIn.getMonth() === currentMonth &&
-        b.status !== "Cancelled"
-      );
-    });
-
-    const totalMonthlyRevenue = currentMonthBookings.reduce(
-      (sum, b) => sum + b.totalAmount,
+    // Revenue is recognized per stay night, so cross-month bookings are prorated.
+    const revenueBookings = allBookings.filter((b) => b.status !== "Cancelled");
+    const totalMonthlyRevenue = revenueBookings.reduce(
+      (sum, b) => sum + getMonthlyRevenue(b, currentYear, currentMonth),
       0
     );
 
@@ -128,21 +153,38 @@ export async function GET() {
       };
     }
 
-    allBookings.forEach((b) => {
+    revenueBookings.forEach((b) => {
       const cIn = new Date(b.checkIn);
-      const key = `${cIn.getFullYear()}-${String(cIn.getMonth() + 1).padStart(2, "0")}`;
-      if (revenueTrendMap[key]) {
-        revenueTrendMap[key].revenue += b.totalAmount;
+      const cOut = new Date(b.checkOut);
+      const firstMonth = new Date(cIn.getFullYear(), cIn.getMonth(), 1);
+      const lastMonth = new Date(cOut.getFullYear(), cOut.getMonth(), 1);
+
+      for (
+        const monthDate = new Date(firstMonth);
+        monthDate <= lastMonth;
+        monthDate.setMonth(monthDate.getMonth() + 1)
+      ) {
+        const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+        if (!revenueTrendMap[key]) continue;
+
+        const monthlyRevenue = getMonthlyRevenue(
+          b,
+          monthDate.getFullYear(),
+          monthDate.getMonth()
+        );
+        if (monthlyRevenue <= 0) continue;
+
+        revenueTrendMap[key].revenue += monthlyRevenue;
         revenueTrendMap[key].bookingsCount += 1;
         const plat = b.platform.toLowerCase();
         if (plat.includes("airbnb")) {
-          revenueTrendMap[key].airbnb += b.totalAmount;
+          revenueTrendMap[key].airbnb += monthlyRevenue;
         } else if (plat.includes("booking")) {
-          revenueTrendMap[key].bookingCom += b.totalAmount;
+          revenueTrendMap[key].bookingCom += monthlyRevenue;
         } else if (plat.includes("direct")) {
-          revenueTrendMap[key].direct += b.totalAmount;
+          revenueTrendMap[key].direct += monthlyRevenue;
         } else {
-          revenueTrendMap[key].vrbo += b.totalAmount;
+          revenueTrendMap[key].vrbo += monthlyRevenue;
         }
       }
     });
