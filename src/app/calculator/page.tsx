@@ -51,7 +51,8 @@ export default function ExtrasChargesPage() {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const usableBookings = data.filter(
-            (booking: Booking) => booking.status !== "Cancelled"
+            (booking: Booking) =>
+              booking.status === "Confirmed" || booking.status === "Checked-In"
           );
           setBookings(usableBookings);
           setSelectedBookingId(usableBookings[0]?.id || "");
@@ -163,7 +164,7 @@ Thank you for staying with us!`;
                   className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-normal text-white focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="" disabled>
-                    Select a reservation
+                    Select an active reservation
                   </option>
                   {bookings.map((booking) => (
                     <option key={booking.id} value={booking.id}>
@@ -202,8 +203,8 @@ Thank you for staying with us!`;
                 />
               </label>
               <p className="text-[11px] text-slate-500 sm:col-span-2">
-                Charges below are additional items or services not included in
-                the reservation price.
+                Select an active reservation before recording additional items
+                or services not included in the booking price.
               </p>
             </div>
           </div>
