@@ -122,11 +122,55 @@ export async function PATCH(
     }
 
     const booking = await prisma.$transaction(async (tx) => {
+      const createTurnoverReminder = async (
+        bookingId: string,
+        propertyId: string,
+        checkoutDate: Date,
+        guestName: string
+      ) => {
+        const existingTask = await tx.cleaningTask.findFirst({
+          where: {
+            propertyId,
+            date: checkoutDate,
+            notes: { contains: `Booking ${bookingId}` },
+          },
+          select: { id: true },
+        });
+
+        if (!existingTask) {
+          await tx.cleaningTask.create({
+            data: {
+              propertyId,
+              cleanerName: "Unassigned",
+              date: checkoutDate,
+              status: "Pending",
+              notes: `Turnover cleaning required after ${guestName}'s checkout. Booking ${bookingId}.`,
+            },
+          });
+        }
+      };
+
       if (nextStatus === "Checked-In" && force && currentOccupant) {
         await tx.booking.update({
           where: { id: currentOccupant.id },
           data: { status: "Completed" },
         });
+
+        await createTurnoverReminder(
+          currentOccupant.id,
+          nextPropertyId,
+          currentOccupant.checkOut,
+          currentOccupant.guestName
+        );
+      }
+
+      if (nextStatus === "Completed" && target.status !== "Completed") {
+        await createTurnoverReminder(
+          target.id,
+          nextPropertyId,
+          dates.end,
+          nextGuestName.trim()
+        );
       }
 
       return tx.booking.update({
