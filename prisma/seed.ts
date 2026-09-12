@@ -9,6 +9,16 @@ async function main() {
   await prisma.cleaningTask.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.property.deleteMany();
+  await prisma.housekeeper.deleteMany();
+
+  await prisma.housekeeper.createMany({
+    data: [
+      { name: "Elena Reyes" },
+      { name: "Marco Santos" },
+      { name: "Maria Gomez" },
+      { name: "Rico Cruz" },
+    ],
+  });
 
   // Create Properties
   const prop1 = await prisma.property.create({

@@ -28,6 +28,12 @@ interface Property {
   buildingName: string;
 }
 
+interface Housekeeper {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 interface CleaningTask {
   id: string;
   propertyId: string;
@@ -42,6 +48,7 @@ interface CleaningTask {
 export default function CleaningDispatcherPage() {
   const [tasks, setTasks] = useState<CleaningTask[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [housekeepers, setHousekeepers] = useState<Housekeeper[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,14 +68,17 @@ export default function CleaningDispatcherPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksRes, propsRes] = await Promise.all([
+      const [tasksRes, propsRes, housekeepersRes] = await Promise.all([
         fetch("/api/cleaning"),
         fetch("/api/properties"),
+        fetch("/api/housekeepers"),
       ]);
       const tasksData = await tasksRes.json();
       const propsData = await propsRes.json();
+      const housekeepersData = await housekeepersRes.json();
       setTasks(tasksData);
       setProperties(propsData);
+      setHousekeepers(housekeepersData);
       if (propsData.length > 0 && !newPropertyId) {
         setNewPropertyId(propsData[0].id);
       }
@@ -543,18 +553,30 @@ export default function CleaningDispatcherPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  {selectedTaskId
-                    ? "Assign Housekeeper / Cleaner"
-                    : "Housekeeper / Cleaner Name"}
+                  Assign Housekeeper
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Elena Reyes or Marco Santos"
+                <select
                   value={newCleanerName}
                   onChange={(e) => setNewCleanerName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                   required
-                />
+                >
+                  <option value="" disabled>
+                    Select an active housekeeper
+                  </option>
+                  {housekeepers
+                    .filter((housekeeper) => housekeeper.active)
+                    .map((housekeeper) => (
+                      <option key={housekeeper.id} value={housekeeper.name}>
+                        {housekeeper.name}
+                      </option>
+                    ))}
+                </select>
+                {housekeepers.filter((housekeeper) => housekeeper.active).length === 0 && (
+                  <p className="mt-1 text-[10px] text-amber-300">
+                    Add an active housekeeper before assigning this task.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
