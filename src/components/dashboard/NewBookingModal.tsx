@@ -157,8 +157,8 @@ export function NewBookingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
-      <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
+      <div className="my-2 w-full max-w-md max-h-[calc(100vh-1rem)] overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:my-0 sm:p-5 shadow-2xl">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div>
@@ -181,7 +181,7 @@ export function NewBookingModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Unit Selector */}
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -280,8 +280,8 @@ export function NewBookingModal({
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-              <div className="flex items-center justify-between mb-3">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-2.5">
+              <div className="flex items-center justify-between mb-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -293,7 +293,7 @@ export function NewBookingModal({
                   className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
                   aria-label="Previous month"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-xs font-semibold text-slate-200">
                   {calendarMonth.toLocaleDateString("en-US", {
@@ -312,7 +312,7 @@ export function NewBookingModal({
                   className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
                   aria-label="Next month"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
@@ -321,7 +321,7 @@ export function NewBookingModal({
                   <span key={day}>{day}</span>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5">
                 {calendarDays.map((date) => {
                   const value = formatInputDate(date);
                   const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
@@ -337,7 +337,7 @@ export function NewBookingModal({
                       type="button"
                       disabled={isDisabled}
                       onClick={() => handleCalendarDateClick(date)}
-                      className={`h-8 rounded-lg text-[11px] transition-colors ${
+                      className={`h-7 rounded-md text-[10px] transition-colors ${
                         !isCurrentMonth
                           ? "text-slate-700"
                           : isDisabled
@@ -356,8 +356,8 @@ export function NewBookingModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+            <div className="grid grid-cols-2 gap-2 mt-1.5">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-1.5">
                 <span className="block text-[10px] text-slate-500">Check-in</span>
                 <span className="text-xs text-slate-200">
                   {checkIn ? parseInputDate(checkIn).toLocaleDateString("en-US", {
@@ -367,7 +367,7 @@ export function NewBookingModal({
                   }) : "Not selected"}
                 </span>
               </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-1.5">
                 <span className="block text-[10px] text-slate-500">Check-out</span>
                 <span className="text-xs text-slate-200">
                   {checkOut ? parseInputDate(checkOut).toLocaleDateString("en-US", {
