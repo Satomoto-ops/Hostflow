@@ -11,14 +11,18 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
-interface Property {
+interface Booking {
   id: string;
-  name: string;
-  unitNumber: string;
-  buildingName: string;
-  basePrice: number;
+  guestName: string;
+  checkIn: string;
+  checkOut: string;
+  status: string;
+  property: {
+    unitNumber: string;
+    buildingName: string;
+  };
 }
 
 interface ExtraCharge {
@@ -35,34 +39,34 @@ const defaultCharges: ExtraCharge[] = [
 ];
 
 export default function ExtrasChargesPage() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [unitDisplay, setUnitDisplay] = useState("");
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [selectedBookingId, setSelectedBookingId] = useState("");
   const [securityDeposit, setSecurityDeposit] = useState(3000);
   const [charges, setCharges] = useState<ExtraCharge[]>(defaultCharges);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch("/api/properties")
+    fetch("/api/bookings")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setProperties(data);
-          setSelectedPropertyId(data[0].id);
-          setUnitDisplay(`Unit ${data[0].unitNumber} - ${data[0].buildingName}`);
+          const usableBookings = data.filter(
+            (booking: Booking) => booking.status !== "Cancelled"
+          );
+          setBookings(usableBookings);
+          setSelectedBookingId(usableBookings[0]?.id || "");
         }
       })
-      .catch((error) => console.error("Error loading properties", error));
+      .catch((error) => console.error("Error loading reservations", error));
   }, []);
 
-  const handlePropertySelect = (propertyId: string) => {
-    setSelectedPropertyId(propertyId);
-    const property = properties.find((item) => item.id === propertyId);
-    if (property) {
-      setUnitDisplay(`Unit ${property.unitNumber} - ${property.buildingName}`);
-    }
-  };
+  const selectedBooking = bookings.find(
+    (booking) => booking.id === selectedBookingId
+  );
+  const guestName = selectedBooking?.guestName || "Guest";
+  const unitDisplay = selectedBooking
+    ? `Unit ${selectedBooking.property.unitNumber} - ${selectedBooking.property.buildingName}`
+    : "Not selected";
 
   const updateCharge = (
     id: string,
@@ -133,7 +137,7 @@ Thank you for staying with us!`;
   };
 
   const handleReset = () => {
-    setGuestName("");
+    setSelectedBookingId(bookings[0]?.id || "");
     setSecurityDeposit(3000);
     setCharges(defaultCharges);
   };
@@ -148,32 +152,43 @@ Thank you for staying with us!`;
           <div className="rounded-2xl border border-slate-800/80 bg-slate-900/70 p-6 backdrop-blur-sm">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white">
               <Building className="h-4 w-4 text-indigo-400" />
-              Unit & Guest Details
+              Reservation Details
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-300">
-                Managed Condo Unit
+              <label className="text-xs font-semibold text-slate-300 sm:col-span-2">
+                Select Reservation
                 <select
-                  value={selectedPropertyId}
-                  onChange={(event) => handlePropertySelect(event.target.value)}
+                  value={selectedBookingId}
+                  onChange={(event) => setSelectedBookingId(event.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-normal text-white focus:border-indigo-500 focus:outline-none"
                 >
-                  {properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      Unit {property.unitNumber} - {property.name}
+                  <option value="" disabled>
+                    Select a reservation
+                  </option>
+                  {bookings.map((booking) => (
+                    <option key={booking.id} value={booking.id}>
+                      {booking.guestName} · Unit {booking.property.unitNumber} ·{" "}
+                      {formatDate(booking.checkIn)}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="text-xs font-semibold text-slate-300">
-                Guest Name
-                <input
-                  value={guestName}
-                  onChange={(event) => setGuestName(event.target.value)}
-                  placeholder="Guest name"
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-normal text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
-                />
-              </label>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs">
+                <span className="block text-slate-500">Guest</span>
+                <span className="font-semibold text-white">{guestName}</span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs">
+                <span className="block text-slate-500">Unit</span>
+                <span className="font-semibold text-white">{unitDisplay}</span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs sm:col-span-2">
+                <span className="block text-slate-500">Stay</span>
+                <span className="font-semibold text-white">
+                  {selectedBooking
+                    ? `${formatDate(selectedBooking.checkIn)} – ${formatDate(selectedBooking.checkOut)}`
+                    : "Select a reservation"}
+                </span>
+              </div>
               <label className="text-xs font-semibold text-slate-300 sm:col-span-2">
                 Security Deposit Collected (PHP)
                 <input
@@ -186,6 +201,10 @@ Thank you for staying with us!`;
                   className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-mono font-normal text-white focus:border-indigo-500 focus:outline-none"
                 />
               </label>
+              <p className="text-[11px] text-slate-500 sm:col-span-2">
+                Charges below are additional items or services not included in
+                the reservation price.
+              </p>
             </div>
           </div>
 
