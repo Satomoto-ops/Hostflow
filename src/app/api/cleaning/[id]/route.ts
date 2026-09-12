@@ -21,27 +21,54 @@ export async function PATCH(
       );
     }
 
-    const updatedTask = await prisma.cleaningTask.update({
-      where: { id },
-      data: {
-        ...(status ? { status } : {}),
-        ...(cleanerName ? { cleanerName } : {}),
-        ...(notes !== undefined ? { notes } : {}),
-      },
-      include: {
-        property: {
-          select: {
-            id: true,
-            name: true,
-            unitNumber: true,
-            buildingName: true,
+    const nextStatus = status || existing.status;
+    const nextCleanerName = cleanerName || existing.cleanerName;
+    const updatedTask = await prisma.$transaction(async (tx) => {
+      if (
+        nextStatus !== "Completed" &&
+        nextCleanerName !== "Unassigned"
+      ) {
+        const activeAssignment = await tx.cleaningTask.findFirst({
+          where: {
+            id: { not: id },
+            cleanerName: nextCleanerName,
+            status: { in: ["Pending", "In-Progress"] },
+          },
+          select: { property: { select: { unitNumber: true } } },
+        });
+
+        if (activeAssignment) {
+          throw new Error(
+            `Housekeeper is already assigned to Unit ${activeAssignment.property.unitNumber}`
+          );
+        }
+      }
+
+      return tx.cleaningTask.update({
+        where: { id },
+        data: {
+          ...(status ? { status } : {}),
+          ...(cleanerName ? { cleanerName } : {}),
+          ...(notes !== undefined ? { notes } : {}),
+        },
+        include: {
+          property: {
+            select: {
+              id: true,
+              name: true,
+              unitNumber: true,
+              buildingName: true,
+            },
           },
         },
-      },
+      });
     });
 
     return NextResponse.json(updatedTask);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Housekeeper is already")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error("Error updating cleaning task:", error);
     return NextResponse.json(
       { error: "Failed to update cleaning task" },

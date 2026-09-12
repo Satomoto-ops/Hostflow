@@ -141,7 +141,10 @@ export default function CleaningDispatcherPage() {
         }
       );
 
-      if (!res.ok) throw new Error("Failed to dispatch cleaner");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to dispatch cleaner");
+      }
 
       await fetchData();
       setIsModalOpen(false);
@@ -150,6 +153,7 @@ export default function CleaningDispatcherPage() {
       setSelectedTaskId(null);
     } catch (err) {
       console.error(err);
+      window.alert(err instanceof Error ? err.message : "Failed to dispatch cleaner");
     } finally {
       setIsSubmitting(false);
     }
@@ -183,6 +187,20 @@ export default function CleaningDispatcherPage() {
 
   const pendingTurnovers = tasks.filter(
     (task) => task.status === "Pending" && task.cleanerName === "Unassigned"
+  );
+  const busyCleanerNames = new Set(
+    tasks
+      .filter(
+        (task) =>
+          task.cleanerName !== "Unassigned" &&
+          (task.status === "Pending" || task.status === "In-Progress") &&
+          task.id !== selectedTaskId
+      )
+      .map((task) => task.cleanerName)
+  );
+  const availableHousekeepers = housekeepers.filter(
+    (housekeeper) =>
+      housekeeper.active && !busyCleanerNames.has(housekeeper.name)
   );
 
   return (
@@ -580,17 +598,16 @@ export default function CleaningDispatcherPage() {
                   <option value="" disabled>
                     Select an active housekeeper
                   </option>
-                  {housekeepers
-                    .filter((housekeeper) => housekeeper.active)
-                    .map((housekeeper) => (
+                  {availableHousekeepers.map((housekeeper) => (
                       <option key={housekeeper.id} value={housekeeper.name}>
                         {housekeeper.name}
                       </option>
-                    ))}
+                  ))}
                 </select>
-                {housekeepers.filter((housekeeper) => housekeeper.active).length === 0 && (
+                {availableHousekeepers.length === 0 && (
                   <p className="mt-1 text-[10px] text-amber-300">
-                    Add an active housekeeper before assigning this task.
+                    All active housekeepers are currently assigned. Complete a
+                    cleaning task before assigning them again.
                   </p>
                 )}
               </div>
@@ -660,7 +677,7 @@ export default function CleaningDispatcherPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || availableHousekeepers.length === 0}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
                 >
                   {isSubmitting
