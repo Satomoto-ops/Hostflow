@@ -48,6 +48,8 @@ export default function CleaningDispatcherPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [housekeepers, setHousekeepers] = useState<Housekeeper[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] =
+    useState<CleaningTask["status"]>("Pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -169,13 +171,14 @@ export default function CleaningDispatcherPage() {
   const completedCount = tasks.filter((t) => t.status === "Completed").length;
 
   const filteredTasks = tasks.filter((t) => {
+    const matchesStatus = t.status === selectedStatus;
     const matchesSearch =
       t.cleanerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.property.unitNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.property.buildingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.notes && t.notes.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesSearch;
+    return matchesStatus && matchesSearch;
   });
 
   const pendingTurnovers = tasks.filter(
@@ -251,22 +254,51 @@ export default function CleaningDispatcherPage() {
       </div>
 
       {/* Main Cleaner Assignment Table Card */}
-      <div className="rounded-2xl bg-slate-900/70 backdrop-blur-sm border border-slate-800/80 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
+        <div className="p-6 border-b border-slate-800/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-              <span>Cleaner Assignment Table</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                {filteredTasks.length} tasks
+            <h2 className="text-base font-semibold text-slate-100 tracking-tight">
+              Cleaner Assignment Table
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                {filteredTasks.length}
               </span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Scheduled completion times, assignee details, and status progression
+              Manage cleaning assignments and turnover readiness
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center">
-            {/* Search */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
+              {(["Pending", "In-Progress", "Completed"] as const).map((status) => {
+                const count = tasks.filter((task) => task.status === status).length;
+                const isActive = selectedStatus === status;
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setSelectedStatus(status)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      isActive
+                        ? "bg-slate-800 text-slate-100 shadow-xs"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <span>{status}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isActive
+                          ? "bg-slate-700 text-slate-200"
+                          : "bg-slate-900 text-slate-500"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -274,7 +306,7 @@ export default function CleaningDispatcherPage() {
                 placeholder="Search cleaner or unit..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                className="w-full sm:w-48 bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
           </div>
