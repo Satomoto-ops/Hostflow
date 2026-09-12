@@ -13,11 +13,9 @@ import {
   Calendar,
   Filter,
   Search,
-  Check,
   X,
   Trash2,
   CheckCircle,
-  RotateCcw,
 } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 
@@ -93,13 +91,12 @@ export default function CleaningDispatcherPage() {
     fetchData();
   }, [fetchData]);
 
-  // Toggle status from Pending -> Completed (or cycle Pending -> In-Progress -> Completed)
-  const toggleTaskStatus = async (task: CleaningTask) => {
+  const updateTaskStatus = async (
+    task: CleaningTask,
+    nextStatus: CleaningTask["status"]
+  ) => {
+    if (nextStatus === task.status) return;
     setUpdatingId(task.id);
-    let nextStatus = "Completed";
-    if (task.status === "Pending") nextStatus = "Completed";
-    else if (task.status === "Completed") nextStatus = "Pending";
-    else if (task.status === "In-Progress") nextStatus = "Completed";
 
     try {
       const res = await fetch(`/api/cleaning/${task.id}`, {
@@ -313,7 +310,7 @@ export default function CleaningDispatcherPage() {
                 <th className="py-3.5 px-4">Scheduled Date & Time</th>
                 <th className="py-3.5 px-4">Task Status</th>
                 <th className="py-3.5 px-4">Turnover Instructions</th>
-                <th className="py-3.5 px-4 text-center">Status Toggle</th>
+                <th className="py-3.5 px-4 text-center">Update Status</th>
                 <th className="py-3.5 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -404,32 +401,24 @@ export default function CleaningDispatcherPage() {
                         </p>
                       </td>
 
-                      {/* Toggle Button to update status */}
+                      {/* Status control */}
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => toggleTaskStatus(task)}
+                        <select
+                          value={task.status}
+                          onChange={(event) =>
+                            updateTaskStatus(
+                              task,
+                              event.target.value as CleaningTask["status"]
+                            )
+                          }
                           disabled={updatingId === task.id}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold text-xs transition-all active:scale-95 border ${
-                            isCompleted
-                              ? "bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-slate-700"
-                              : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20"
-                          }`}
-                          title="Click to toggle status between Pending and Completed"
+                          aria-label={`Update cleaning task status for Unit ${task.property.unitNumber}`}
+                          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors focus:border-indigo-500 focus:outline-none disabled:cursor-wait disabled:opacity-50"
                         >
-                          {updatingId === task.id ? (
-                            <span className="animate-spin text-white">●</span>
-                          ) : isCompleted ? (
-                            <>
-                              <RotateCcw className="w-3 h-3 text-slate-400" />
-                              <span>Reopen</span>
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Mark Completed</span>
-                            </>
-                          )}
-                        </button>
+                          <option value="Pending">Pending</option>
+                          <option value="In-Progress">In-Progress</option>
+                          <option value="Completed">Completed</option>
+                        </select>
                       </td>
 
                       {/* Delete */}
