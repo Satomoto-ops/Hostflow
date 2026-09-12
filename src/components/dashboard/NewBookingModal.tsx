@@ -91,6 +91,47 @@ export function NewBookingModal({
     });
   }, [bookings, checkIn, checkOut, properties]);
 
+  const nextBookingStart = useMemo(() => {
+    if (!selectedProperty) return null;
+
+    const now = new Date();
+    const upcomingStarts = bookings
+      .filter(
+        (booking) =>
+          booking.propertyId === selectedProperty.id &&
+          ["Confirmed", "Checked-In"].includes(booking.status) &&
+          new Date(booking.checkIn) > now
+      )
+      .map((booking) => new Date(booking.checkIn))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    return upcomingStarts[0] ?? null;
+  }, [bookings, selectedProperty]);
+
+  const availableNightsBeforeNextBooking = useMemo(() => {
+    if (!nextBookingStart) return null;
+
+    const today = new Date();
+    const todayStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const arrivalStart = new Date(
+      nextBookingStart.getFullYear(),
+      nextBookingStart.getMonth(),
+      nextBookingStart.getDate()
+    );
+
+    return Math.max(
+      0,
+      Math.ceil(
+        (arrivalStart.getTime() - todayStart.getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    );
+  }, [nextBookingStart]);
+
   // Calculate stay duration in nights: (Check-Out Date - Check-In Date)
   const stayNights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -135,6 +176,22 @@ export function NewBookingModal({
 
   const handleCalendarDateClick = (date: Date) => {
     const selectedDate = formatInputDate(date);
+    const nextBookingDay = nextBookingStart
+      ? new Date(
+          nextBookingStart.getFullYear(),
+          nextBookingStart.getMonth(),
+          nextBookingStart.getDate()
+        )
+      : null;
+
+    if (
+      nextBookingDay &&
+      ((!checkIn && date >= nextBookingDay) ||
+        (checkIn && date > nextBookingDay))
+    ) {
+      return;
+    }
+
     if (!checkIn || checkOut) {
       setCheckIn(selectedDate);
       setCheckOut("");
@@ -151,7 +208,22 @@ export function NewBookingModal({
 
   const isDateBeforeCheckIn = (date: Date) =>
     date < todayInputDate ||
-    Boolean(checkIn && formatInputDate(date) <= checkIn && !checkOut);
+    Boolean(checkIn && formatInputDate(date) <= checkIn && !checkOut) ||
+    Boolean(
+      nextBookingStart &&
+        ((!checkIn && date >=
+          new Date(
+            nextBookingStart.getFullYear(),
+            nextBookingStart.getMonth(),
+            nextBookingStart.getDate()
+          )) ||
+          (checkIn && date >
+            new Date(
+              nextBookingStart.getFullYear(),
+              nextBookingStart.getMonth(),
+              nextBookingStart.getDate()
+            )))
+    );
 
   if (!isOpen) return null;
 
@@ -317,6 +389,13 @@ export function NewBookingModal({
                       ? "Now select a check-out date"
                       : `${stayNights} ${stayNights === 1 ? "night" : "nights"} selected`}
                 </p>
+                {nextBookingStart && availableNightsBeforeNextBooking !== null && (
+                  <p className="text-[10px] text-amber-300 mt-1">
+                    {availableNightsBeforeNextBooking}{" "}
+                    {availableNightsBeforeNextBooking === 1 ? "night" : "nights"} available
+                    before the next booking arrives.
+                  </p>
+                )}
               </div>
               {(checkIn || checkOut) && (
                 <button
@@ -386,12 +465,22 @@ export function NewBookingModal({
                   const isInRange =
                     Boolean(checkIn && checkOut) && value > checkIn && value < checkOut;
                   const isDisabled = isDateBeforeCheckIn(date);
+                  const isNextBookingArrival =
+                    nextBookingStart &&
+                    date.getFullYear() === nextBookingStart.getFullYear() &&
+                    date.getMonth() === nextBookingStart.getMonth() &&
+                    date.getDate() === nextBookingStart.getDate();
 
                   return (
                     <button
                       key={value}
                       type="button"
                       disabled={isDisabled}
+                      title={
+                        isNextBookingArrival
+                          ? "Next booking arrives on this date"
+                          : undefined
+                      }
                       onClick={() => handleCalendarDateClick(date)}
                       className={`h-7 rounded-md text-[10px] transition-colors ${
                         !isCurrentMonth
