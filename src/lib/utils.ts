@@ -31,3 +31,16 @@ export function formatTime(date: Date | string) {
     hour12: true,
   }).format(d);
 }
+
+export type CheckoutStatus = "normal" | "soon" | "overdue";
+
+export function getCheckoutStatus(checkOutDate: Date): CheckoutStatus {
+  const millisecondsUntilCheckout = checkOutDate.getTime() - Date.now();
+  const twoHoursInMilliseconds = 2 * 60 * 60 * 1000;
+
+  if (millisecondsUntilCheckout < 0) {
+    return "overdue";
+  }
+
+  return millisecondsUntilCheckout <= twoHoursInMilliseconds ? "soon" : "normal";
+}

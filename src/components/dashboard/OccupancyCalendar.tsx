@@ -21,7 +21,7 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getCheckoutStatus } from "@/lib/utils";
 import { HistoricalArchiveDrawer } from "./HistoricalArchiveDrawer";
 
 export interface BookingWithProperty {
@@ -514,11 +514,25 @@ export function OccupancyCalendar({
             ) : (
               processedBookings.map((b) => {
                 const nights = getNights(b.checkIn, b.checkOut);
+                const checkoutStatus =
+                  b.status === "Checked-In"
+                    ? getCheckoutStatus(new Date(b.checkOut))
+                    : "normal";
+                const checkoutMinutesRemaining = Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(b.checkOut).getTime() - now.getTime()) / 60000
+                  )
+                );
 
                 return (
                   <tr
                     key={b.id}
-                    className="hover:bg-slate-800/40 transition-colors group"
+                    className={`hover:bg-slate-800/40 transition-colors group ${
+                      checkoutStatus === "overdue"
+                        ? "border-y border-rose-500/60 bg-rose-950/10"
+                        : ""
+                    }`}
                   >
                     {/* Guest Details (Left-aligned) */}
                     <td className="py-4 px-5 text-left">
@@ -558,7 +572,19 @@ export function OccupancyCalendar({
 
                     {/* Status (Center-aligned) */}
                     <td className="py-4 px-5 text-center">
-                      {renderStatusBadge(b.status)}
+                      <div className="flex flex-col items-center gap-1.5">
+                        {renderStatusBadge(b.status)}
+                        {checkoutStatus === "soon" && (
+                          <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                            Checkout Soon (in {checkoutMinutesRemaining} mins)
+                          </span>
+                        )}
+                        {checkoutStatus === "overdue" && (
+                          <span className="inline-flex items-center rounded-full border border-rose-500/50 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-300">
+                            Overdue Checkout
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Payout (Right-aligned) */}
