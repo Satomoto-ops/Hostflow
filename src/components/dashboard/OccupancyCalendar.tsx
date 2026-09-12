@@ -180,6 +180,13 @@ export function OccupancyCalendar({
     setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
+  const isUnitOccupied = (propertyId: string): boolean => {
+    return bookings.some(
+      (booking) =>
+        booking.propertyId === propertyId && booking.status === "Checked-In"
+    );
+  };
+
   const handleAction = async (id: string, targetStatus: string, force = false) => {
     if (!onStatusChange) return;
     setUpdatingId(id);
@@ -562,19 +569,35 @@ export function OccupancyCalendar({
                     {/* Contextual Row Action Buttons */}
                     <td className="py-4 px-5 text-right">
                       {b.status === "Confirmed" && (
-                        <button
-                          type="button"
-                          onClick={() => handleAction(b.id, "Checked-In")}
-                          disabled={updatingId === b.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-xs transition-colors active:scale-95 disabled:opacity-50"
-                        >
-                          {updatingId === b.id ? (
-                            <span className="animate-spin text-white">●</span>
-                          ) : (
-                            <LogIn className="w-3.5 h-3.5" />
-                          )}
-                          <span>Check In</span>
-                        </button>
+                        (() => {
+                          const unitOccupied = isUnitOccupied(b.propertyId);
+                          const isUpdating = updatingId === b.id;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleAction(b.id, "Checked-In")}
+                              disabled={unitOccupied || isUpdating}
+                              title={
+                                unitOccupied
+                                  ? "Unit is currently occupied by another guest"
+                                  : undefined
+                              }
+                              className={
+                                unitOccupied
+                                  ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/50 text-slate-500 cursor-not-allowed opacity-60 text-xs font-medium"
+                                  : "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-xs transition-colors active:scale-95 disabled:opacity-50"
+                              }
+                            >
+                              {isUpdating ? (
+                                <span className="animate-spin text-white">●</span>
+                              ) : (
+                                <LogIn className="w-3.5 h-3.5" />
+                              )}
+                              <span>Check In</span>
+                            </button>
+                          );
+                        })()
                       )}
 
                       {b.status === "Checked-In" && (
