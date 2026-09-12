@@ -288,7 +288,7 @@ export function NewBookingModal({
           <div>
             <h3 className="text-base font-semibold text-white">Add New Booking</h3>
             <p className="text-xs text-slate-400">
-              Record a guest reservation with automatic rate calculation
+              Record a reservation for a guest with automatic rate calculation
             </p>
           </div>
           <button
