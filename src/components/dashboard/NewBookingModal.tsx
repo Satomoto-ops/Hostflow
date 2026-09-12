@@ -45,6 +45,10 @@ export function NewBookingModal({
     const date = new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
+  const todayInputDate = useMemo(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }, []);
   const [status, setStatus] = useState("Confirmed");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +117,7 @@ export function NewBookingModal({
   };
 
   const isDateBeforeCheckIn = (date: Date) =>
+    date < todayInputDate ||
     Boolean(checkIn && formatInputDate(date) <= checkIn && !checkOut);
 
   if (!isOpen) return null;
@@ -284,13 +289,17 @@ export function NewBookingModal({
               <div className="flex items-center justify-between mb-2">
                 <button
                   type="button"
+                  disabled={
+                    calendarMonth.getFullYear() === todayInputDate.getFullYear() &&
+                    calendarMonth.getMonth() === todayInputDate.getMonth()
+                  }
                   onClick={() =>
                     setCalendarMonth(
                       (current) =>
                         new Date(current.getFullYear(), current.getMonth() - 1, 1)
                     )
                   }
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Previous month"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
