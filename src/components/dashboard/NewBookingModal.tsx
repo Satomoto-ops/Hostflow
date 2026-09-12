@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { X, Calendar, DollarSign, User, Building2, Check, Calculator, Info } from "lucide-react";
 
 interface PropertyOption {
@@ -28,26 +28,11 @@ export function NewBookingModal({
   const [guestName, setGuestName] = useState("");
   const [platform, setPlatform] = useState("Airbnb");
 
-  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
-  const defaultOutStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split("T")[0];
-  }, []);
-
-  const [checkIn, setCheckIn] = useState(todayStr);
-  const [checkOut, setCheckOut] = useState(defaultOutStr);
-  const [totalAmount, setTotalAmount] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
   const [status, setStatus] = useState("Confirmed");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Sync initial property selection if properties load late
-  useEffect(() => {
-    if (!propertyId && properties.length > 0) {
-      setPropertyId(properties[0].id);
-    }
-  }, [properties, propertyId]);
 
   // Selected property object
   const selectedProperty = useMemo(() => {
@@ -56,10 +41,10 @@ export function NewBookingModal({
 
   // Calculate stay duration in nights: (Check-Out Date - Check-In Date)
   const stayNights = useMemo(() => {
-    if (!checkIn || !checkOut) return 1;
+    if (!checkIn || !checkOut) return 0;
     const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
     const days = Math.round(diff / (1000 * 60 * 60 * 24));
-    return days > 0 ? days : 1;
+    return days > 0 ? days : 0;
   }, [checkIn, checkOut]);
 
   // Estimated Payout = Nights * Unit Base Rate
@@ -68,19 +53,10 @@ export function NewBookingModal({
     return stayNights * unitBaseRate;
   }, [stayNights, unitBaseRate]);
 
-  // Dynamically auto-calculate and pre-fill "Total Payout Amount (PHP)"
-  // whenever unit or date range is selected, while keeping input field editable
-  useEffect(() => {
-    if (selectedProperty && stayNights > 0) {
-      const calculated = stayNights * selectedProperty.basePrice;
-      setTotalAmount(calculated.toString());
-    }
-  }, [propertyId, checkIn, checkOut, selectedProperty, stayNights]);
-
   // Handlers for dates to keep checkOut >= checkIn
   const handleCheckInChange = (newIn: string) => {
     setCheckIn(newIn);
-    if (checkOut <= newIn) {
+    if (checkOut && checkOut <= newIn) {
       const nextDay = new Date(newIn);
       nextDay.setDate(nextDay.getDate() + 1);
       setCheckOut(nextDay.toISOString().split("T")[0]);
@@ -88,7 +64,7 @@ export function NewBookingModal({
   };
 
   const handleCheckOutChange = (newOut: string) => {
-    if (newOut <= checkIn) {
+    if (checkIn && newOut <= checkIn) {
       const nextDay = new Date(checkIn);
       nextDay.setDate(nextDay.getDate() + 1);
       setCheckOut(nextDay.toISOString().split("T")[0]);
@@ -109,12 +85,12 @@ export function NewBookingModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId,
+          propertyId: propertyId || selectedProperty?.id,
           guestName,
           platform,
           checkIn,
           checkOut,
-          totalAmount: parseFloat(totalAmount) || estimatedPayout,
+          totalAmount: estimatedPayout,
           status,
         }),
       });
@@ -165,7 +141,7 @@ export function NewBookingModal({
               Select Condo Unit
             </label>
             <select
-              value={propertyId}
+              value={propertyId || selectedProperty?.id || ""}
               onChange={(e) => setPropertyId(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               required
@@ -270,23 +246,24 @@ export function NewBookingModal({
 
             <div className="relative">
               <input
-                type="number"
-                min="0"
-                step="50"
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
-                placeholder={estimatedPayout.toString()}
-                required
+                type="text"
+                value={
+                  stayNights > 0
+                    ? `₱${estimatedPayout.toLocaleString()}`
+                    : "Select check-in and check-out dates"
+                }
+                readOnly
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none font-mono cursor-not-allowed"
+                aria-describedby="payout-calculation"
               />
             </div>
 
             {/* Dynamic Computation Explanation */}
-            <div className="mt-1.5 p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <div id="payout-calculation" className="mt-1.5 p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
               <span className="flex items-center gap-1.5">
                 <Calculator className="w-3 h-3 text-indigo-400" />
                 <span>
-                  {stayNights} nights × ₱{unitBaseRate.toLocaleString()}/night
+                  {stayNights || 0} {stayNights === 1 ? "night" : "nights"} × ₱{unitBaseRate.toLocaleString()}/night
                 </span>
               </span>
               <span className="font-mono text-slate-200 font-medium">
@@ -294,7 +271,7 @@ export function NewBookingModal({
               </span>
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
-              * Editable: Adjust freely for cleaning fees, platform commissions, or discounts.
+              * Calculated automatically from the selected stay dates and unit rate.
             </p>
           </div>
 
