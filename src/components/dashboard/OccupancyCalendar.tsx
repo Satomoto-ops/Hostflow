@@ -48,7 +48,7 @@ interface OccupancyCalendarProps {
   onNewBookingClick?: () => void;
 }
 
-type StatusTab = "Confirmed" | "Checked-In" | "Completed";
+type StatusTab = "Confirmed" | "Checked-In" | "Completed" | "Cancelled";
 type ChannelOption = "All Channels" | "Airbnb" | "Booking.com" | "Direct";
 
 export function OccupancyCalendar({
@@ -56,7 +56,7 @@ export function OccupancyCalendar({
   onStatusChange,
   onNewBookingClick,
 }: OccupancyCalendarProps) {
-  // 1. Specific status filter tabs: "Confirmed" (default), "Checked-In", "Completed"
+  // 1. Specific status filter tabs: Confirmed, Checked-In, Completed, Cancelled
   const [selectedStatus, setSelectedStatus] = useState<StatusTab>("Confirmed");
 
   // 2. Channel filter option: "All Channels" (default), "Airbnb", "Booking.com", "Direct"
@@ -100,6 +100,7 @@ export function OccupancyCalendar({
       Confirmed: 0,
       "Checked-In": 0,
       Completed: 0,
+      Cancelled: 0,
     };
     bookings.forEach((b) => {
       const matchesChannel =
@@ -111,6 +112,8 @@ export function OccupancyCalendar({
         else if (b.status === "Checked-In") counts["Checked-In"]++;
         else if (b.status === "Completed" && isCurrentMonthCheckOut(b.checkOut)) {
           counts["Completed"]++;
+        } else if (b.status === "Cancelled") {
+          counts["Cancelled"]++;
         }
       }
     });
@@ -118,7 +121,7 @@ export function OccupancyCalendar({
   }, [bookings, selectedChannel, startOfCurrentMonth, endOfCurrentMonth]);
 
   // Combined Filtering:
-  // 1. Status: Confirmed, Checked-In, or Completed (current calendar month checkOut)
+  // 1. Status: Confirmed, Checked-In, Completed (current month), or Cancelled
   // 2. Channel: All Channels, Airbnb, Booking.com, Direct
   // 3. Search query
   // 4. Automatic date/time sorting (checkIn asc or desc)
@@ -240,6 +243,13 @@ export function OccupancyCalendar({
             Completed
           </span>
         );
+      case "cancelled":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-950/40 text-rose-300 border border-rose-800/50">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+            Cancelled
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
@@ -254,7 +264,7 @@ export function OccupancyCalendar({
     return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
   };
 
-  const tabs: StatusTab[] = ["Confirmed", "Checked-In", "Completed"];
+  const tabs: StatusTab[] = ["Confirmed", "Checked-In", "Completed", "Cancelled"];
   const channelOptions: ChannelOption[] = [
     "All Channels",
     "Airbnb",
@@ -548,6 +558,17 @@ export function OccupancyCalendar({
                             <LogOut className="w-3.5 h-3.5" />
                           )}
                           <span>Check Out</span>
+                        </button>
+                      )}
+
+                      {(b.status === "Confirmed" || b.status === "Checked-In") && (
+                        <button
+                          type="button"
+                          onClick={() => handleAction(b.id, "Cancelled")}
+                          disabled={updatingId === b.id}
+                          className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-transparent hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 text-xs font-medium border border-rose-500/30 transition-colors active:scale-95 disabled:opacity-50"
+                        >
+                          Cancel
                         </button>
                       )}
 

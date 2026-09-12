@@ -223,6 +223,7 @@ export function NewBookingModal({
                 <option value="Confirmed">Confirmed</option>
                 <option value="Checked-In">Checked-In</option>
                 <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
           </div>

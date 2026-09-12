@@ -2,6 +2,7 @@ export const BOOKING_STATUSES = [
   "Confirmed",
   "Checked-In",
   "Completed",
+  "Cancelled",
 ] as const;
 
 export const BOOKING_PLATFORMS = [
